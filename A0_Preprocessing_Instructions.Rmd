@@ -71,7 +71,9 @@ Load the three data sets, after downloading them from dropbox and saving them in
 * Word data: https://www.dropbox.com/s/8ng1civpl2aux58/token_train.csv?dl=0
 
 ```{r}
-
+Demo <- read_csv("demo_train.csv")
+LU <- read_csv("LU_train.csv")
+Token <- read_csv("Token_train.csv")
 ```
 
 Explore the 3 data sets (e.g. visualize them, summarize them, etc.). You will see that the data is messy, since the psychologist collected the demographic data, the linguist analyzed the length of utterance in May 2014 and the fumbling jack-of-all-trades analyzed the words several months later. 
@@ -79,6 +81,14 @@ In particular:
 - the same variables might have different names (e.g. participant and visit identifiers)
 - the same variables might report the values in different ways (e.g. participant and visit IDs)
 Welcome to real world of messy data :-)
+
+```{r}
+summary(Demo)
+
+summary(LU)
+
+summary(Token)
+```
 
 Before being able to combine the data sets we need to make sure the relevant variables have the same names and the same kind of values.
 
@@ -91,6 +101,28 @@ Tip: look through the chapter on data transformation in R for data science (http
 
 
 ```{r}
+#Checking the names of the columns
+colnames(Demo)
+
+colnames(LU)
+
+colnames(Token)
+
+#We change all participants ID to "ID", all visits to "visit"
+Demo <- Demo %>% 
+  rename(
+    ID = Child.ID,
+    visit = Visit)
+
+LU <- LU %>% 
+  rename(
+    ID = SUBJ,
+    visit = VISIT)
+
+Token <- Token %>% 
+  rename(
+    ID = SUBJ,
+    visit = VISIT)
 
 ```
 
@@ -100,8 +132,11 @@ Tip: The stringr package is what you need. str_extract () will allow you to extr
 
 
 ```{r}
+#homogenizing the visit, so it is only a number
+LU <- LU %>% 
+  mutate(visit=str_extract(visit,"\\d"))
 
-
+#352 datapoints
 ```
 
 2c. We also need to make a small adjustment to the content of the Child.ID column in the demographic data. Within this column, names that are not abbreviations do not end with "." (i.e. Adam), which is the case in the other two data sets (i.e. Adam.). If The content of the two variables isn't identical the rows will not be merged.
