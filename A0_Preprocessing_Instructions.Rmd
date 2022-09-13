@@ -110,19 +110,17 @@ colnames(Token)
 
 #We change all participants ID to "ID", all visits to "visit"
 Demo <- Demo %>% 
-  rename(
-    ID = Child.ID,
-    visit = Visit)
+  rename(ID = Child.ID)
 
 LU <- LU %>% 
   rename(
     ID = SUBJ,
-    visit = VISIT)
+    Visit = VISIT)
 
 Token <- Token %>% 
   rename(
     ID = SUBJ,
-    visit = VISIT)
+    Visit = VISIT)
 
 ```
 
@@ -134,7 +132,10 @@ Tip: The stringr package is what you need. str_extract () will allow you to extr
 ```{r}
 #homogenizing the visit, so it is only a number
 LU <- LU %>% 
-  mutate(visit=str_extract(visit,"\\d"))
+  mutate(Visit=str_extract(Visit,"\\d"))
+
+Token <- Token %>% 
+  mutate(Visit=str_extract(Visit,"\\d"))
 
 #352 datapoints
 ```
@@ -147,7 +148,14 @@ Tip: You can either have one line of code for each child name that is to be chan
 
 
 ```{r}
+Demo <- Demo %>% 
+  mutate(ID = gsub('\\.','',ID)) # inside the '' is what we want to remove, the punktum, and inside the next '' is what we want to replace it with, nothing
 
+LU <- LU %>% 
+  mutate(ID = gsub('\\.','',ID))
+
+Token <- Token %>% 
+  mutate(ID = gsub('\\.','',ID))
 ```
 
 2d. Now that the nitty gritty details of the different data sets are fixed, we want to make a subset of each data set only containig the variables that we wish to use in the final data set.
@@ -183,7 +191,49 @@ Most variables should make sense, here the less intuitive ones.
 Feel free to rename the variables into something you can remember (i.e. nonVerbalIQ, verbalIQ)
 
 ```{r}
+Subset_demo <- Demo %>% 
+  select(ID,
+         Visit,
+         Diagnosis,
+         Ethnicity,
+         Gender,
+         Age,
+         ADOS,
+         MullenRaw,
+         ExpressiveLangRaw,
+         Socialization)
 
+Subset_demo <- Subset_demo %>% 
+  rename(
+    Autism_severity = ADOS,
+    Non_verbal_iq = MullenRaw,
+    Verbal_iq = ExpressiveLangRaw)
+
+Subset_LU <- LU %>% 
+  select(ID,
+         Visit,
+         MOT_MLU,
+         CHI_MLU)
+
+Subset_LU <- Subset_LU %>% 
+  rename(
+    Mom_mlu = MOT_MLU,
+    Child_Mlu = CHI_MLU)
+
+Subset_token <- Token %>% 
+  select(ID,
+         Visit,
+         types_MOT,
+         types_CHI,
+         tokens_MOT,
+         tokens_CHI)
+
+Subset_token <- Subset_token %>% 
+  rename(
+    Unique_words_mom = types_MOT,
+    Unique_words_child = types_CHI,
+    Sum_of_words_mom = tokens_MOT,
+    Sum_of_words_child = tokens_CHI)
 ```
 
 2e. Finally we are ready to merge all the data sets into just one. 
@@ -193,8 +243,22 @@ Some things to pay attention to:
 * make sure to understand whether (and if so why) there are NAs in the data set (e.g. some measures were not taken at all visits, some recordings were lost or permission to use was withdrawn)
 
 ```{r}
+#Getting visit to be the right factor:
+Subset_token$Visit<-as.numeric(Subset_token$Visit)
+Subset_token$Visit<-as.factor(Subset_token$Visit)
+class(Subset_token$Visit)
 
+Subset_LU$Visit<-as.numeric(Subset_LU$Visit)
+Subset_LU$Visit<-as.factor(Subset_LU$Visit)
+class(Subset_LU$Visit)
 
+Subset_demo$Visit<-as.factor(Subset_demo$Visit)
+class(Subset_demo$Visit)
+
+#Merging the datasets into one:
+Analysis_df <- Subset_demo %>% 
+  full_join(Subset_LU) %>% 
+  full_join(Subset_token)
 ```
 
 
@@ -207,9 +271,26 @@ A possible way to do so:
 * merge the new data set with the old
 
 
-
 ```{r}
+sub_1 <- Analysis_df %>% 
+  select(ID,
+         Visit,
+         Autism_severity,
+         Non_verbal_iq,
+         Verbal_iq,
+         Socialization) %>% 
+  filter(Visit == 1) %>% 
+  rename(
+    Autism_severity_1 = Autism_severity,
+    Non_verbal_iq_1 = Non_verbal_iq,
+    Verbal_iq_1 = Verbal_iq,
+    Socialization_1 = Socialization) %>% 
+  select(-Visit)
 
+clinical_df <- Analysis_df %>% 
+  full_join(sub_1)
+
+### why do we keep the original autism severity
 ```
 
 2g. Final touches
@@ -220,6 +301,20 @@ Now we want to
 * Save the data set using into a csv file. Hint: look into write.csv()
 
 ```{r}
+#Anonymizing the participants
+clinical_df$ID <- clinical_df$ID %>% as.factor() #getting it from character to factor
+clinical_df$ID <- clinical_df$ID %>% as.numeric() #making to names/initials into numbers
+clinical_df$ID <- clinical_df$ID %>% as.factor()
+
+#Renaming variable values
+clinical_df$Gender <- clinical_df$Gender %>% as.factor()
+levels(clinical_df$Gender) <- c("Female", "Male")
+
+clinical_df$Diagnosis <- clinical_df$Diagnosis %>% as.factor()
+levels(clinical_df$Diagnosis) <- c("ASD", "TD")
+
+#Saving the dataset into a csv file
+write_csv(clinical_df,"clinical_data.csv")
 
 ```
 
